@@ -3840,5 +3840,62 @@ three/build/three.module.js:
 */
 
 </script>
+<style>
+body.full aside, body.walk aside { display: none !important; }
+body.full, body.walk { grid-template-columns: 1fr !important; grid-template-rows: 100% !important; overflow: hidden !important; }
+.fsbar { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 6; }
+.fsbar button { background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font: 500 13px var(--body); color: var(--ink); cursor: pointer; }
+.fsbar button.go { background: var(--accent); color: #fff; border-color: var(--accent); }
+body.walk .fsbar { left: auto; right: 12px; }
+body.walk .fsbar .go, body:not(.full) .fsbar .go { display: none; }
+#hud select { font: 500 13px var(--body); padding: 5px 6px; border-radius: 6px; border: 1px solid #c9d1d7; background: #fff; color: var(--ink); max-width: 46vw; }
+@media (max-width: 760px) {
+  body.walk .fsbar { top: 8px; left: 8px; right: auto; }
+  body.walk .fsbar button { padding: 7px 10px; font-size: 16px; }
+  #hud { flex-wrap: wrap; justify-content: center; }
+}
+</style>
+<script>
+(function () {
+  var main = document.querySelector('main'), body = document.body;
+  var bar = document.createElement('div'); bar.className = 'fsbar';
+  bar.innerHTML = '<button id="fsbtn" type="button">⛶ Full screen</button><button class="go" id="fswalk" type="button">Walk inside</button>';
+  main.appendChild(bar);
+  var fsbtn = document.getElementById('fsbtn');
+  function label(on) {
+    var tiny = innerWidth < 760 && body.classList.contains('walk');
+    fsbtn.textContent = tiny ? (on ? '✕' : '⛶') : (on ? '✕ Exit full screen' : '⛶ Full screen');
+    fsbtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+  }
+  new MutationObserver(function () { label(body.classList.contains('full')); }).observe(body, { attributes: true, attributeFilter: ['class'] });
+  function apiFull() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function setFull(on) {
+    body.classList.toggle('full', on);
+    label(on);
+    try {
+      if (on) {
+        var el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (rq) { var p = rq.call(el); if (p && p.catch) p.catch(function () {}); }
+        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+      } else if (apiFull()) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      }
+    } catch (e) {}
+  }
+  fsbtn.addEventListener('click', function () { setFull(!body.classList.contains('full')); });
+  document.getElementById('fswalk').addEventListener('click', function () { document.getElementById('walk').click(); });
+  function onFsChange() { if (!apiFull() && body.classList.contains('full')) setFull(false); }
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+  // "Go to" dropdown inside the walking bar (the side panel is hidden while walking)
+  var hud = document.getElementById('hud'), btns = document.querySelectorAll('#units button');
+  var sel = document.createElement('select'); sel.id = 'hudgoto'; sel.setAttribute('aria-label', 'Go to a unit');
+  var html = '<option value="">Go to…</option>';
+  for (var i = 0; i < btns.length; i++) { var t = btns[i].querySelector('.ty'); html += '<option value="' + i + '">' + (t ? t.textContent : 'Place ' + (i + 1)) + '</option>'; }
+  sel.innerHTML = html;
+  sel.addEventListener('change', function () { if (sel.value !== '') btns[+sel.value].click(); sel.value = ''; sel.blur(); });
+  hud.insertBefore(sel, document.getElementById('exitwalk'));
+})();
+</script>
 </body>
 </html>
