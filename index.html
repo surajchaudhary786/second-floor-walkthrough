@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="2nd Floor">
 <title>Second Floor Walk-through</title>
 <style>
 :root {
@@ -3843,6 +3847,11 @@ three/build/three.module.js:
 <style>
 body.full aside, body.walk aside { display: none !important; }
 body.full, body.walk { grid-template-columns: 1fr !important; grid-template-rows: 100% !important; overflow: hidden !important; }
+html, body { overscroll-behavior: none; }
+body.full, body.walk { touch-action: none; position: fixed; inset: 0; width: 100%; }
+#fsre { display: none; }
+body.full.noapi #fsre { display: inline-block; }
+.homenote { font-size: 12px; color: var(--muted); }
 .fsbar { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 6; }
 .fsbar button { background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font: 500 13px var(--body); color: var(--ink); cursor: pointer; }
 .fsbar button.go { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -3859,7 +3868,7 @@ body.walk .fsbar .go, body:not(.full) .fsbar .go { display: none; }
 (function () {
   var main = document.querySelector('main'), body = document.body;
   var bar = document.createElement('div'); bar.className = 'fsbar';
-  bar.innerHTML = '<button id="fsbtn" type="button">⛶ Full screen</button><button class="go" id="fswalk" type="button">Walk inside</button>';
+  bar.innerHTML = '<button id="fsbtn" type="button">⛶ Full screen</button><button id="fsre" type="button" aria-label="Fill the whole screen again">⛶</button><button class="go" id="fswalk" type="button">Walk inside</button>';
   main.appendChild(bar);
   var fsbtn = document.getElementById('fsbtn');
   function label(on) {
@@ -3872,6 +3881,7 @@ body.walk .fsbar .go, body:not(.full) .fsbar .go { display: none; }
   function setFull(on) {
     body.classList.toggle('full', on);
     label(on);
+    if (!on) body.classList.remove('noapi');
     try {
       if (on) {
         var el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
@@ -3882,9 +3892,17 @@ body.walk .fsbar .go, body:not(.full) .fsbar .go { display: none; }
       }
     } catch (e) {}
   }
-  fsbtn.addEventListener('click', function () { setFull(!body.classList.contains('full')); });
+  fsbtn.addEventListener('click', function () { setFull(!body.classList.contains('full')); setTimeout(syncApi, 600); });
   document.getElementById('fswalk').addEventListener('click', function () { document.getElementById('walk').click(); });
-  function onFsChange() { if (!apiFull() && body.classList.contains('full')) setFull(false); }
+  // The browser (e.g. a swipe down on iPad) may leave its own full screen at any time.
+  // The page keeps its full-screen layout until the button is pressed; a small button re-enters browser full screen.
+  var hasApi = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+  var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+  function syncApi() { body.classList.toggle('noapi', hasApi && !standalone && !apiFull()); }
+  function onFsChange() { syncApi(); }
+  document.getElementById('fsre').addEventListener('click', function () {
+    try { var el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen; var p = rq && rq.call(el); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  });
   document.addEventListener('fullscreenchange', onFsChange);
   document.addEventListener('webkitfullscreenchange', onFsChange);
   // "Go to" dropdown inside the walking bar (the side panel is hidden while walking)
@@ -3895,6 +3913,13 @@ body.walk .fsbar .go, body:not(.full) .fsbar .go { display: none; }
   sel.innerHTML = html;
   sel.addEventListener('change', function () { if (sel.value !== '') btns[+sel.value].click(); sel.value = ''; sel.blur(); });
   hud.insertBefore(sel, document.getElementById('exitwalk'));
+  // tip for iPad / iPhone: a home-screen shortcut opens with no browser bars at all
+  var aside = document.querySelector('aside');
+  if (aside && /iPad|iPhone|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document && !standalone) {
+    var n = document.createElement('div'); n.className = 'homenote';
+    n.textContent = 'On iPad or iPhone: tap Share, then "Add to Home Screen". Opening it from the home screen keeps it full screen all the time.';
+    aside.insertBefore(n, aside.children[2] || null);
+  }
 })();
 </script>
 </body>
